@@ -1,0 +1,23 @@
+# Root env
+.env
+
+# ---- Mobile (Expo/React Native) ----
+app-mobile/node_modules/
+app-mobile/.expo/
+app-mobile/.expo-shared/
+app-mobile/web-build/
+app-mobile/.cache/
+app-mobile/npm-debug.log*
+app-mobile/.env*
+# keep lockfile! do NOT ignore pnpm-lock.yaml
+
+# ---- Python (API) ----
+api/.env
+api/.venv/
+api/dist/
+api/build/
+__pycache__/
+*.pyc
+
+# ---- Misc / local artifacts ----
+*.sqlite
