@@ -21,3 +21,8 @@ __pycache__/
 
 # ---- Misc / local artifacts ----
 *.sqlite
+
+# env
+*.env
+app-mobile/.env
+api/.env
