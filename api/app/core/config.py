@@ -9,6 +9,10 @@ class Settings(BaseSettings):
     REMINDER_HOUR: int = 19
     ENABLE_REMINDERS: bool = True
 
+    TWILIO_ACCOUNT_SID: str | None = None
+    TWILIO_AUTH_TOKEN: str | None = None
+    TWILIO_FROM: str | None = None   # SMS number like +1..., or WhatsApp sender like 'whatsapp:+14155238886'
+
     class Config:
         env_file = ".env"
 
