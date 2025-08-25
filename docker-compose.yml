@@ -11,6 +11,11 @@ services:
   api:
     build: ./api                   # uses api/Dockerfile
     env_file: ./api/.env.dev       # injects env vars into the api container
+    environment:
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM=${TWILIO_FROM}
+
     ports: ["8000:8000"]           # localhost:8000 -> FastAPI
     depends_on: [db]               # ensure db starts first
 
