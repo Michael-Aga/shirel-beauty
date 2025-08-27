@@ -1,19 +1,29 @@
-from pydantic_settings import BaseSettings
+# api/app/core/config.py
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AliasChoices, Field
 
 class Settings(BaseSettings):
-    DB_URL: str = "postgresql+asyncpg://sb:sb@db:5432/shirel"
+    DATABASE_URL: str = Field(
+        default="postgresql+asyncpg://postgres:postgres@db:5432/postgres",
+        validation_alias=AliasChoices("DATABASE_URL", "DB_URL", "DATABASE_DSN"),
+    )
+
     TIMEZONE: str = "Asia/Jerusalem"
     LEAD_MINUTES: int = 30
     BUFFER_MINUTES: int = 20
-    SLOT_STEP_MIN: int = 15
     REMINDER_HOUR: int = 19
     ENABLE_REMINDERS: bool = True
 
     TWILIO_ACCOUNT_SID: str | None = None
     TWILIO_AUTH_TOKEN: str | None = None
-    TWILIO_FROM: str | None = None   # SMS number like +1..., or WhatsApp sender like 'whatsapp:+14155238886'
+    TWILIO_FROM: str | None = None
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="",
+        extra="ignore",
+        case_sensitive=False,
+    )
 
 settings = Settings()
+

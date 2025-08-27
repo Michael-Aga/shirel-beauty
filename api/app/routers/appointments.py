@@ -1,7 +1,7 @@
 # api/app/routers/appointments.py
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, delete
+from sqlalchemy import select, and_, delete, func
 from datetime import datetime, date as Date, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -88,24 +88,23 @@ async def create_appointment(payload: AppointmentCreate, db: AsyncSession = Depe
     if not (window_start <= start_local and end_local <= window_end):
         raise HTTPException(400, "Outside working hours")
 
-    # conflict check (+ buffer AFTER existing appts)
+    # conflict check (+ buffer AFTER existing appts), filtered by service
     BUFFER = timedelta(minutes=settings.BUFFER_MINUTES)
     start_utc = start_local.astimezone(utc)
     end_utc   = end_local.astimezone(utc)
 
-    overlaps = (
-        await db.execute(
-            select(Appointment).where(
-                and_(
-                    Appointment.status == "confirmed",
-                    Appointment.start_utc < end_utc + BUFFER,
-                    Appointment.end_utc   > start_utc,
-                )
-            )
+    conflict_q = (
+        select(func.count(Appointment.id))
+        .where(
+            Appointment.service_id == svc.id,
+            Appointment.status == "confirmed",
+            Appointment.start_utc < end_utc + BUFFER,
+            Appointment.end_utc   > start_utc,
         )
-    ).scalars().first()
-    if overlaps:
-        raise HTTPException(409, "Time conflicts with an existing appointment")
+    )
+    conflicts = (await db.execute(conflict_q)).scalar_one()
+    if conflicts:
+        raise HTTPException(409, "This time is already booked. Please pick another slot.")
 
     # create
     appt = Appointment(
@@ -149,7 +148,7 @@ async def delete_appointments(
         await db.execute(delete(Appointment))
     await db.commit()
 
-# ---------- CANCEL PUNISMENT ----------
+# ---------- CANCEL / RESCHEDULE ----------
 @router.patch("/{appt_id}", response_model=AppointmentActionResponse)
 async def update_appointment(
     appt_id: int,
@@ -215,21 +214,24 @@ async def update_appointment(
         if not (window_start <= new_start_local and new_end_local <= window_end):
             raise HTTPException(400, "Outside working hours")
 
-        # conflict (+ buffer after existing appts), excluding the current appointment
+        # conflict (+ buffer after existing appts), excluding the current appointment, same service
         BUFFER = timedelta(minutes=settings.BUFFER_MINUTES)
         new_s_utc = new_start_local.astimezone(utc)
         new_e_utc = new_end_local.astimezone(utc)
 
-        clash = (await db.execute(
-            select(Appointment).where(
+        conflict_q = (
+            select(func.count(Appointment.id))
+            .where(
                 Appointment.id != appt.id,
+                Appointment.service_id == appt.service_id,
                 Appointment.status == "confirmed",
                 Appointment.start_utc < new_e_utc + BUFFER,
                 Appointment.end_utc   > new_s_utc,
             )
-        )).scalars().first()
-        if clash:
-            raise HTTPException(409, "Time conflicts with an existing appointment")
+        )
+        conflicts = (await db.execute(conflict_q)).scalar_one()
+        if conflicts:
+            raise HTTPException(409, "This time is already booked. Please pick another slot.")
 
         # apply change
         appt.start_utc = new_s_utc
@@ -239,3 +241,4 @@ async def update_appointment(
         return AppointmentActionResponse(appointment=appt)
 
     raise HTTPException(400, "Unknown action")
+

@@ -1,28 +1,39 @@
-# Root env
-.env
+# --- Env files (keep secrets out of git) ---
+**/.env
+**/.env.*
+*.env
 
-# ---- Mobile (Expo/React Native) ----
+# --- Node / Expo ---
 app-mobile/node_modules/
 app-mobile/.expo/
 app-mobile/.expo-shared/
-app-mobile/web-build/
-app-mobile/.cache/
-app-mobile/npm-debug.log*
-app-mobile/.env*
-# keep lockfile! do NOT ignore pnpm-lock.yaml
+app-mobile/dist/
+app-mobile/build/
 
-# ---- Python (API) ----
-api/.env
-api/.venv/
-api/dist/
-api/build/
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS/editor junk ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Python ---
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.venv/
+venv/
+env/
 
-# ---- Misc / local artifacts ----
-*.sqlite
-
-# env
-*.env
-app-mobile/.env
-api/.env
+# --- Coverage/artifacts ---
+.coverage
+htmlcov/
+dist/
+build/

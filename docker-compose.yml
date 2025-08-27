@@ -2,22 +2,42 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: sb
-      POSTGRES_PASSWORD: sb
-      POSTGRES_DB: shirel
-    ports: ["5432:5432"]           # exposes DB to your WSL host (handy for psql)
-    volumes: [pgdata:/var/lib/postgresql/data]  # keeps data between restarts
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # use the env var; note the $$ to escape for compose
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\""]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   api:
-    build: ./api                   # uses api/Dockerfile
-    env_file: ./api/.env.dev       # injects env vars into the api container
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./.env
     environment:
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_FROM=${TWILIO_FROM}
-
-    ports: ["8000:8000"]           # localhost:8000 -> FastAPI
-    depends_on: [db]               # ensure db starts first
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/postgres}
+      TIMEZONE: ${TIMEZONE:-Asia/Jerusalem}
+      ENABLE_REMINDERS: ${ENABLE_REMINDERS:-true}
+      REMINDER_HOUR: ${REMINDER_HOUR:-19}
+      LEAD_MINUTES: ${LEAD_MINUTES:-30}
+      BUFFER_MINUTES: ${BUFFER_MINUTES:-20}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
+    ports:
+      - "0.0.0.0:8000:8000"
+    restart: unless-stopped
 
 volumes:
   pgdata:
+

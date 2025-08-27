@@ -3,8 +3,14 @@ from __future__ import annotations
 
 from typing import Optional, Literal, List
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
+# --- Regex rules ---
+# Phone: +9725XXXXXXXX or whatsapp:+9725XXXXXXXX (9 digits after +972)
+PHONE_REGEX = r"^(?:\+9725\d{8}|whatsapp:\+9725\d{8})$"
+
+# Name: two or more words, each ≥2 letters (Hebrew or English), allow - and ' inside words
+NAME_REGEX = r"^(?:\p{L}{2,}(?:[-'’]\p{L}{2,})*)(?:\s+\p{L}{2,}(?:[-'’]\p{L}{2,})*)+$"
 
 # -------- Services --------
 class ServiceOut(BaseModel):
@@ -15,8 +21,7 @@ class ServiceOut(BaseModel):
     active: bool
 
     class Config:
-        from_attributes = True  # pydantic v2 orm_mode
-
+        from_attributes = True  # pydantic v2 compatibility
 
 # -------- Availability --------
 class AvailabilitySlot(BaseModel):
@@ -24,18 +29,21 @@ class AvailabilitySlot(BaseModel):
     end_iso: str
     label: str      # e.g., "08:00"
 
-
 class AvailabilityResponse(BaseModel):
     slots: List[AvailabilitySlot]
-
 
 # -------- Appointments (create/list) --------
 class AppointmentCreate(BaseModel):
     service_id: int
-    start_iso: str            # local ISO with tz
-    client_name: str
-    client_phone: str
+    start_iso: str
+    client_name: str = Field(pattern=NAME_REGEX, min_length=4, max_length=100)
+    client_phone: str = Field(pattern=PHONE_REGEX)
 
+    # trim whitespace before validation
+    @field_validator("client_name", "client_phone", mode="before")
+    @classmethod
+    def _strip_ws(cls, v):
+        return v.strip() if isinstance(v, str) else v
 
 class AppointmentOut(BaseModel):
     id: int
@@ -49,12 +57,10 @@ class AppointmentOut(BaseModel):
     class Config:
         from_attributes = True
 
-
 # -------- Admin actions (cancel/reschedule) --------
 class AppointmentActionResponse(BaseModel):
     appointment: AppointmentOut
     penalty_due: Optional[int] = None  # shekels, on cancel if <24h
-
 
 class AppointmentUpdate(BaseModel):
     action: Literal["cancel", "reschedule"]
@@ -71,3 +77,4 @@ class OverrideUpsert(BaseModel):
     start_time: Optional[str] = None  # when not closed; omit to keep default 08:00
     end_time:   Optional[str] = None  # when not closed; omit to keep default 22:00
     is_closed: bool = False
+
